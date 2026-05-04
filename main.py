@@ -1,7 +1,23 @@
 from __future__ import annotations
 
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
+
+
+def configure_japanese_font() -> None:
+    """
+    matplotlib の日本語フォントを設定する。
+
+    fc-list の結果にある Noto Sans CJK JP を優先的に使う。
+    """
+    matplotlib.rcParams["font.family"] = [
+        "Noto Sans CJK JP",
+        "Noto Sans CJK JP Light",
+        "Noto Serif CJK JP",
+        "DejaVu Sans",
+    ]
+    matplotlib.rcParams["axes.unicode_minus"] = False
 
 
 def inversion_point(z: complex, center: complex, radius: float) -> complex:
@@ -54,7 +70,11 @@ def make_grid_lines(
     return lines
 
 
-def split_line_at_center(line: list[complex], center: complex, eps: float = 1e-12) -> list[list[complex]]:
+def split_line_at_center(
+    line: list[complex],
+    center: complex,
+    eps: float = 1e-12,
+) -> list[list[complex]]:
     """
     中心付近の点を含む線分を分割する。
     反転で中心を含む点は無限遠に飛ぶため除外する。
@@ -97,6 +117,8 @@ def visualize_inversion_of_grid(
     extent: float = 3.0,
 ) -> None:
     """円に関する格子反転を可視化する。"""
+    configure_japanese_font()
+
     fig, ax = plt.subplots(figsize=(8, 8))
 
     grid_lines = make_grid_lines(
@@ -131,8 +153,8 @@ def visualize_inversion_of_grid(
     ax.set_aspect("equal", adjustable="box")
     ax.set_xlim(-extent, extent)
     ax.set_ylim(-extent, extent)
-    ax.set_xlabel("Re")
-    ax.set_ylabel("Im")
+    ax.set_xlabel("実部")
+    ax.set_ylabel("虚部")
     ax.set_title("円に関する反転による格子の変形")
     ax.grid(False)
 
