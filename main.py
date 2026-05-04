@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from matplotlib.patches import Circle
 
 
@@ -131,13 +132,27 @@ def visualize_inversion_of_grid(
 
     # 元の格子
     for line in grid_lines:
-        plot_complex_line(ax, line, color="#9a9a9a", linewidth=0.8, alpha=0.45)
+        plot_complex_line(
+            ax,
+            line,
+            color="#9a9a9a",
+            linewidth=0.8,
+            alpha=0.45,
+            zorder=1,
+        )
 
     # 反転後の格子
     for line in grid_lines:
         for segment in split_line_at_center(line, center):
             inverted = invert_polyline(segment, center, radius)
-            plot_complex_line(ax, inverted, color="crimson", linewidth=1.2, alpha=0.9)
+            plot_complex_line(
+                ax,
+                inverted,
+                color="crimson",
+                linewidth=1.2,
+                alpha=0.9,
+                zorder=2,
+            )
 
     # 反転円
     circle = Circle(
@@ -146,10 +161,11 @@ def visualize_inversion_of_grid(
         fill=False,
         color="black",
         linewidth=2.2,
+        zorder=3,
     )
     ax.add_patch(circle)
 
-    ax.scatter([center.real], [center.imag], color="black", s=30, zorder=5)
+    ax.scatter([center.real], [center.imag], color="black", s=30, zorder=4)
     ax.set_aspect("equal", adjustable="box")
     ax.set_xlim(-extent, extent)
     ax.set_ylim(-extent, extent)
@@ -157,6 +173,13 @@ def visualize_inversion_of_grid(
     ax.set_ylabel("虚部")
     ax.set_title("円に関する反転による格子の変形")
     ax.grid(False)
+
+    legend_handles = [
+        Line2D([0], [0], color="#9a9a9a", lw=1.2, alpha=0.7, label="元の格子"),
+        Line2D([0], [0], color="crimson", lw=1.5, alpha=0.9, label="反転後の格子"),
+        Line2D([0], [0], color="black", lw=2.2, label="反転の円"),
+    ]
+    ax.legend(handles=legend_handles, loc="upper right")
 
     plt.show()
 
