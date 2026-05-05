@@ -101,3 +101,48 @@ def inverse(T: MobiusTransform) -> MobiusTransform:
         c=-T.c / det,
         d=T.a / det,
     )
+
+
+def fixed_points(T: MobiusTransform) -> list[ComplexOrInfinity]:
+    """
+    メビウス変換 T(z) = (a z + b) / (c z + d) の固定点を返す。
+
+    固定点は方程式
+
+        z = (a z + b) / (c z + d)
+
+    すなわち
+
+        c z^2 + (d - a) z - b = 0
+
+    の解である。
+
+    返り値は固定点のリストで、∞ は None で表す。
+    """
+    a, b, c, d = T.a, T.b, T.c, T.d
+
+    # c == 0 の場合は一次方程式になる
+    if c == 0:
+        # T(z) = (a z + b) / d
+        # 固定点条件: z = (a z + b) / d
+        # => (d - a) z = b
+        if d - a == 0:
+            # 恒等変換に近い特別な場合
+            # b == 0 なら全点が固定点だが、ここでは代表的に None を返さない
+            return [None] if b == 0 else []
+        return [b / (d - a)]
+
+    # 一般の場合: c z^2 + (d - a) z - b = 0
+    B = d - a
+    C = -b
+    discriminant = B * B - 4 * c * C  # = (d-a)^2 + 4bc
+
+    sqrt_discriminant = discriminant ** 0.5
+
+    z1 = (-B + sqrt_discriminant) / (2 * c)
+    z2 = (-B - sqrt_discriminant) / (2 * c)
+
+    if z1 == z2:
+        return [z1]
+
+    return [z1, z2]
