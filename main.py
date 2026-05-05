@@ -10,12 +10,12 @@ def configure_japanese_font() -> None:
     """
     matplotlib の日本語フォントを設定する。
 
-    fc-list の結果にある Noto Sans CJK JP を優先的に使う。
+    利用可能性が高い Noto Serif CJK JP を優先する。
+    存在しない可能性のあるフォント名は候補から外す。
     """
     matplotlib.rcParams["font.family"] = [
-        "Noto Sans CJK JP",
-        "Noto Sans CJK JP Light",
         "Noto Serif CJK JP",
+        "Noto Sans CJK JP",
         "DejaVu Sans",
     ]
     matplotlib.rcParams["axes.unicode_minus"] = False
