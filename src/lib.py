@@ -5,7 +5,14 @@ from typing import Optional
 
 import numpy as np
 
-from fastplotlib import Figure, LineGraphic, ScatterGraphic
+# rendercanvas / fastplotlib はバックエンド選択より先に読み込まれると
+# GLFW を拾って失敗することがあるため、Qt バックエンドを先に明示する。
+# ここでは環境変数で rendercanvas に Qt を優先させる。
+import os
+
+os.environ.setdefault("RENDERCANVAS_FORCE_BACKEND", "qt")
+
+from fastplotlib import Figure, LineGraphic, ScatterGraphic  # noqa: E402
 
 
 ComplexOrInfinity = Optional[complex]
@@ -232,7 +239,6 @@ def visualize_inversion_of_grid(
 
     fig = Figure()
 
-    # 元の格子
     for line in grid_lines:
         fig.add_graphic(
             LineGraphic(
@@ -243,7 +249,6 @@ def visualize_inversion_of_grid(
             )
         )
 
-    # 反転後の格子
     for line in grid_lines:
         for segment in split_line_at_center(line, center):
             inverted = invert_polyline(segment, center, radius)
@@ -256,7 +261,6 @@ def visualize_inversion_of_grid(
                 )
             )
 
-    # 円
     theta = np.linspace(0, 2 * np.pi, 512)
     circle = np.column_stack(
         [
@@ -273,7 +277,6 @@ def visualize_inversion_of_grid(
         )
     )
 
-    # 中心点
     fig.add_graphic(
         ScatterGraphic(
             data=np.array([[center.real, center.imag]], dtype=float),
