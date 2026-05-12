@@ -3,13 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+import os
+
 import numpy as np
 
 # rendercanvas / fastplotlib はバックエンド選択より先に読み込まれると
 # GLFW を拾って失敗することがあるため、Qt バックエンドを先に明示する。
-# ここでは環境変数で rendercanvas に Qt を優先させる。
-import os
-
 os.environ.setdefault("RENDERCANVAS_FORCE_BACKEND", "qt")
 
 from fastplotlib import Figure, LineGraphic, ScatterGraphic  # noqa: E402
@@ -222,6 +221,23 @@ def invert_polyline(points: np.ndarray, center: complex, radius: float) -> np.nd
     return np.array(out, dtype=float)
 
 
+def _line_graphic_from_points(points: np.ndarray, color: str, thickness: float, alpha: float) -> LineGraphic:
+    return LineGraphic(
+        data=points,
+        colors=color,
+        thickness=thickness,
+        alpha=alpha,
+    )
+
+
+def _scatter_graphic_from_point(point: np.ndarray, color: str, size: float) -> ScatterGraphic:
+    return ScatterGraphic(
+        data=point,
+        colors=color,
+        sizes=size,
+    )
+
+
 def visualize_inversion_of_grid(
     center: complex = 0 + 0j,
     radius: float = 1.0,
@@ -237,30 +253,33 @@ def visualize_inversion_of_grid(
         step=grid_step,
     )
 
-    fig = Figure()
+    graphics = []
 
+    # 元の格子
     for line in grid_lines:
-        fig.add_graphic(
-            LineGraphic(
-                data=line,
-                colors="gray",
+        graphics.append(
+            _line_graphic_from_points(
+                line,
+                color="gray",
                 thickness=1.0,
                 alpha=0.45,
             )
         )
 
+    # 反転後の格子
     for line in grid_lines:
         for segment in split_line_at_center(line, center):
             inverted = invert_polyline(segment, center, radius)
-            fig.add_graphic(
-                LineGraphic(
-                    data=inverted,
-                    colors="crimson",
+            graphics.append(
+                _line_graphic_from_points(
+                    inverted,
+                    color="crimson",
                     thickness=1.5,
                     alpha=0.9,
                 )
             )
 
+    # 円
     theta = np.linspace(0, 2 * np.pi, 512)
     circle = np.column_stack(
         [
@@ -268,21 +287,23 @@ def visualize_inversion_of_grid(
             center.imag + radius * np.sin(theta),
         ]
     )
-    fig.add_graphic(
-        LineGraphic(
-            data=circle,
-            colors="black",
+    graphics.append(
+        _line_graphic_from_points(
+            circle,
+            color="black",
             thickness=2.5,
             alpha=1.0,
         )
     )
 
-    fig.add_graphic(
-        ScatterGraphic(
-            data=np.array([[center.real, center.imag]], dtype=float),
-            colors="black",
-            sizes=20,
+    # 中心点
+    graphics.append(
+        _scatter_graphic_from_point(
+            np.array([[center.real, center.imag]], dtype=float),
+            color="black",
+            size=20,
         )
     )
 
+    fig = Figure(graphics=graphics)
     fig.show()
