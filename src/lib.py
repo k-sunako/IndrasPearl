@@ -5,12 +5,7 @@ from typing import Optional
 
 import numpy as np
 
-try:
-    from fastplotlib import Plot
-except ImportError as exc:  # pragma: no cover
-    raise ImportError(
-        "fastplotlib が必要です。pyproject.toml の依存関係を確認してください。"
-    ) from exc
+from fastplotlib import Figure, LineGraphic, ScatterGraphic
 
 
 ComplexOrInfinity = Optional[complex]
@@ -180,7 +175,6 @@ def split_line_at_center(
     """
     中心付近の点を含む線分を分割する。
     """
-    cx, cy = center.real, center.imag
     segments: list[np.ndarray] = []
     current: list[list[float]] = []
 
@@ -236,44 +230,56 @@ def visualize_inversion_of_grid(
         step=grid_step,
     )
 
-    plot = Plot()
-    fig = plot.figure
+    fig = Figure()
 
     # 元の格子
     for line in grid_lines:
-        fig.add_line(
-            line[:, 0],
-            line[:, 1],
-            colors="gray",
-            thickness=1.0,
-            alpha=0.45,
+        fig.add_graphic(
+            LineGraphic(
+                data=line,
+                colors="gray",
+                thickness=1.0,
+                alpha=0.45,
+            )
         )
 
     # 反転後の格子
     for line in grid_lines:
         for segment in split_line_at_center(line, center):
             inverted = invert_polyline(segment, center, radius)
-            fig.add_line(
-                inverted[:, 0],
-                inverted[:, 1],
-                colors="crimson",
-                thickness=1.5,
-                alpha=0.9,
+            fig.add_graphic(
+                LineGraphic(
+                    data=inverted,
+                    colors="crimson",
+                    thickness=1.5,
+                    alpha=0.9,
+                )
             )
 
     # 円
     theta = np.linspace(0, 2 * np.pi, 512)
-    circle_x = center.real + radius * np.cos(theta)
-    circle_y = center.imag + radius * np.sin(theta)
-    fig.add_line(circle_x, circle_y, colors="black", thickness=2.5)
+    circle = np.column_stack(
+        [
+            center.real + radius * np.cos(theta),
+            center.imag + radius * np.sin(theta),
+        ]
+    )
+    fig.add_graphic(
+        LineGraphic(
+            data=circle,
+            colors="black",
+            thickness=2.5,
+            alpha=1.0,
+        )
+    )
 
     # 中心点
-    fig.add_scatter(
-        np.array([center.real]),
-        np.array([center.imag]),
-        colors="black",
-        sizes=20,
+    fig.add_graphic(
+        ScatterGraphic(
+            data=np.array([[center.real, center.imag]], dtype=float),
+            colors="black",
+            sizes=20,
+        )
     )
 
     fig.show()
-    plot.show()
