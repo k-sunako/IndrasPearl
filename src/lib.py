@@ -158,16 +158,16 @@ def make_grid_lines(
 
     x = xmin
     while x <= xmax + 1e-12:
-        ys = np.array(linspace(ymin, ymax, samples), dtype=float)
-        xs = np.full_like(ys, x)
-        lines.append(np.column_stack([xs, ys]))
+        ys = np.array(linspace(ymin, ymax, samples), dtype=np.float32)
+        xs = np.full_like(ys, x, dtype=np.float32)
+        lines.append(np.column_stack([xs, ys]).astype(np.float32))
         x += step
 
     y = ymin
     while y <= ymax + 1e-12:
-        xs = np.array(linspace(xmin, xmax, samples), dtype=float)
-        ys = np.full_like(xs, y)
-        lines.append(np.column_stack([xs, ys]))
+        xs = np.array(linspace(xmin, xmax, samples), dtype=np.float32)
+        ys = np.full_like(xs, y, dtype=np.float32)
+        lines.append(np.column_stack([xs, ys]).astype(np.float32))
         y += step
 
     return lines
@@ -185,15 +185,15 @@ def split_line_at_center(
     current: list[list[float]] = []
 
     for p in line:
-        if abs(complex(p[0], p[1]) - center) < eps:
+        if abs(complex(float(p[0]), float(p[1])) - center) < eps:
             if len(current) >= 2:
-                segments.append(np.array(current, dtype=float))
+                segments.append(np.array(current, dtype=np.float32))
             current = []
         else:
-            current.append([p[0], p[1]])
+            current.append([float(p[0]), float(p[1])])
 
     if len(current) >= 2:
-        segments.append(np.array(current, dtype=float))
+        segments.append(np.array(current, dtype=np.float32))
 
     return segments
 
@@ -215,15 +215,15 @@ def invert_polyline(points: np.ndarray, center: complex, radius: float) -> np.nd
     """点列を円に関して反転する。"""
     out = []
     for p in points:
-        z = complex(p[0], p[1])
+        z = complex(float(p[0]), float(p[1]))
         w = inversion_point(z, center, radius)
         out.append([w.real, w.imag])
-    return np.array(out, dtype=float)
+    return np.array(out, dtype=np.float32)
 
 
 def _line_graphic_from_points(points: np.ndarray, color: str, thickness: float, alpha: float) -> LineGraphic:
     return LineGraphic(
-        data=points,
+        data=points.astype(np.float32),
         colors=color,
         thickness=thickness,
         alpha=alpha,
@@ -232,7 +232,7 @@ def _line_graphic_from_points(points: np.ndarray, color: str, thickness: float, 
 
 def _scatter_graphic_from_point(point: np.ndarray, color: str, size: float) -> ScatterGraphic:
     return ScatterGraphic(
-        data=point,
+        data=point.astype(np.float32),
         colors=color,
         sizes=size,
     )
@@ -253,11 +253,15 @@ def visualize_inversion_of_grid(
         step=grid_step,
     )
 
-    graphics = []
+    fig = Figure()
+
+    # fastplotlib のこのバージョンでは、Figure を空で作り、
+    # layout 経由で graphic を追加する。
+    layout = fig[0, 0]
 
     # 元の格子
     for line in grid_lines:
-        graphics.append(
+        layout.add_graphic(
             _line_graphic_from_points(
                 line,
                 color="gray",
@@ -270,7 +274,7 @@ def visualize_inversion_of_grid(
     for line in grid_lines:
         for segment in split_line_at_center(line, center):
             inverted = invert_polyline(segment, center, radius)
-            graphics.append(
+            layout.add_graphic(
                 _line_graphic_from_points(
                     inverted,
                     color="crimson",
@@ -280,14 +284,14 @@ def visualize_inversion_of_grid(
             )
 
     # 円
-    theta = np.linspace(0, 2 * np.pi, 512)
+    theta = np.linspace(0, 2 * np.pi, 512, dtype=np.float32)
     circle = np.column_stack(
         [
-            center.real + radius * np.cos(theta),
-            center.imag + radius * np.sin(theta),
+            np.float32(center.real) + np.float32(radius) * np.cos(theta).astype(np.float32),
+            np.float32(center.imag) + np.float32(radius) * np.sin(theta).astype(np.float32),
         ]
-    )
-    graphics.append(
+    ).astype(np.float32)
+    layout.add_graphic(
         _line_graphic_from_points(
             circle,
             color="black",
@@ -297,13 +301,12 @@ def visualize_inversion_of_grid(
     )
 
     # 中心点
-    graphics.append(
+    layout.add_graphic(
         _scatter_graphic_from_point(
-            np.array([[center.real, center.imag]], dtype=float),
+            np.array([[center.real, center.imag]], dtype=np.float32),
             color="black",
             size=20,
         )
     )
 
-    fig = Figure(graphics=graphics)
     fig.show()
