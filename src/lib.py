@@ -3,10 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-from matplotlib.patches import Circle
+import numpy as np
+
+try:
+    from fastplotlib import Plot
+except ImportError as exc:  # pragma: no cover
+    raise ImportError(
+        "fastplotlib が必要です。pyproject.toml の依存関係を確認してください。"
+    ) from exc
 
 
 ComplexOrInfinity = Optional[complex]
@@ -111,18 +115,6 @@ def inverse(T: MobiusTransform) -> MobiusTransform:
 def fixed_points(T: MobiusTransform) -> list[ComplexOrInfinity]:
     """
     メビウス変換 T(z) = (a z + b) / (c z + d) の固定点を返す。
-
-    固定点は方程式
-
-        z = (a z + b) / (c z + d)
-
-    すなわち
-
-        c z^2 + (d - a) z - b = 0
-
-    の解である。
-
-    返り値は固定点のリストで、∞ は None で表す。
     """
     a, b, c, d = T.a, T.b, T.c, T.d
 
@@ -134,7 +126,6 @@ def fixed_points(T: MobiusTransform) -> list[ComplexOrInfinity]:
     B = d - a
     C = -b
     discriminant = B * B - 4 * c * C
-
     sqrt_discriminant = discriminant ** 0.5
 
     z1 = (-B + sqrt_discriminant) / (2 * c)
@@ -144,40 +135,6 @@ def fixed_points(T: MobiusTransform) -> list[ComplexOrInfinity]:
         return [z1]
 
     return [z1, z2]
-
-
-def configure_japanese_font() -> None:
-    """
-    matplotlib の日本語フォントを設定する。
-
-    利用可能性が高い Noto Serif CJK JP を優先する。
-    存在しない可能性のあるフォント名は候補から外す。
-    """
-    matplotlib.rcParams["font.family"] = [
-        "Noto Serif CJK JP",
-        "Noto Sans CJK JP",
-        "DejaVu Sans",
-    ]
-    matplotlib.rcParams["axes.unicode_minus"] = False
-
-
-def inversion_point(z: complex, center: complex, radius: float) -> complex:
-    """
-    円 center, radius に関する点 z の反転を返す。
-
-    反転の公式:
-        z' = center + radius^2 * (z - center) / |z - center|^2
-
-    ただし z == center のときは反転先が無限遠点になるため、
-    この関数では ValueError を送出する。
-    """
-    offset = z - center
-    denominator = abs(offset) ** 2
-
-    if denominator == 0:
-        raise ValueError("円の中心は反転できません。")
-
-    return center + (radius**2) * offset / denominator
 
 
 def linspace(start: float, stop: float, count: int) -> list[float]:
@@ -194,61 +151,74 @@ def make_grid_lines(
     ymax: float,
     step: float,
     samples: int = 400,
-) -> list[list[complex]]:
+) -> list[np.ndarray]:
     """複素平面上の格子線を生成する。"""
-    lines: list[list[complex]] = []
+    lines: list[np.ndarray] = []
 
     x = xmin
     while x <= xmax + 1e-12:
-        lines.append([complex(x, y) for y in linspace(ymin, ymax, samples)])
+        ys = np.array(linspace(ymin, ymax, samples), dtype=float)
+        xs = np.full_like(ys, x)
+        lines.append(np.column_stack([xs, ys]))
         x += step
 
     y = ymin
     while y <= ymax + 1e-12:
-        lines.append([complex(x, y) for x in linspace(xmin, xmax, samples)])
+        xs = np.array(linspace(xmin, xmax, samples), dtype=float)
+        ys = np.full_like(xs, y)
+        lines.append(np.column_stack([xs, ys]))
         y += step
 
     return lines
 
 
 def split_line_at_center(
-    line: list[complex],
+    line: np.ndarray,
     center: complex,
     eps: float = 1e-12,
-) -> list[list[complex]]:
+) -> list[np.ndarray]:
     """
     中心付近の点を含む線分を分割する。
-    反転で中心を含む点は無限遠に飛ぶため除外する。
     """
-    segments: list[list[complex]] = []
-    current: list[complex] = []
+    cx, cy = center.real, center.imag
+    segments: list[np.ndarray] = []
+    current: list[list[float]] = []
 
     for p in line:
-        if abs(p - center) < eps:
+        if abs(complex(p[0], p[1]) - center) < eps:
             if len(current) >= 2:
-                segments.append(current)
+                segments.append(np.array(current, dtype=float))
             current = []
         else:
-            current.append(p)
+            current.append([p[0], p[1]])
 
     if len(current) >= 2:
-        segments.append(current)
+        segments.append(np.array(current, dtype=float))
 
     return segments
 
 
-def invert_polyline(points: list[complex], center: complex, radius: float) -> list[complex]:
+def inversion_point(z: complex, center: complex, radius: float) -> complex:
+    """
+    円 center, radius に関する点 z の反転を返す。
+    """
+    offset = z - center
+    denominator = abs(offset) ** 2
+
+    if denominator == 0:
+        raise ValueError("円の中心は反転できません。")
+
+    return center + (radius**2) * offset / denominator
+
+
+def invert_polyline(points: np.ndarray, center: complex, radius: float) -> np.ndarray:
     """点列を円に関して反転する。"""
-    return [inversion_point(p, center, radius) for p in points]
-
-
-def plot_complex_line(ax, points: list[complex], **kwargs) -> None:
-    """複素数列を x-y 平面の折れ線として描画する。"""
-    if len(points) < 2:
-        return
-    xs = [p.real for p in points]
-    ys = [p.imag for p in points]
-    ax.plot(xs, ys, **kwargs)
+    out = []
+    for p in points:
+        z = complex(p[0], p[1])
+        w = inversion_point(z, center, radius)
+        out.append([w.real, w.imag])
+    return np.array(out, dtype=float)
 
 
 def visualize_inversion_of_grid(
@@ -257,11 +227,7 @@ def visualize_inversion_of_grid(
     grid_step: float = 0.25,
     extent: float = 3.0,
 ) -> None:
-    """円に関する格子反転を可視化する。"""
-    configure_japanese_font()
-
-    fig, ax = plt.subplots(figsize=(8, 8))
-
+    """円に関する格子反転を可視化する。fastplotlib でウィンドウ表示する。"""
     grid_lines = make_grid_lines(
         xmin=-extent,
         xmax=extent,
@@ -270,52 +236,44 @@ def visualize_inversion_of_grid(
         step=grid_step,
     )
 
+    plot = Plot()
+    fig = plot.figure
+
+    # 元の格子
     for line in grid_lines:
-        plot_complex_line(
-            ax,
-            line,
-            color="#9a9a9a",
-            linewidth=0.8,
+        fig.add_line(
+            line[:, 0],
+            line[:, 1],
+            colors="gray",
+            thickness=1.0,
             alpha=0.45,
-            zorder=1,
         )
 
+    # 反転後の格子
     for line in grid_lines:
         for segment in split_line_at_center(line, center):
             inverted = invert_polyline(segment, center, radius)
-            plot_complex_line(
-                ax,
-                inverted,
-                color="crimson",
-                linewidth=1.2,
+            fig.add_line(
+                inverted[:, 0],
+                inverted[:, 1],
+                colors="crimson",
+                thickness=1.5,
                 alpha=0.9,
-                zorder=2,
             )
 
-    circle = Circle(
-        (center.real, center.imag),
-        radius,
-        fill=False,
-        color="black",
-        linewidth=2.2,
-        zorder=3,
+    # 円
+    theta = np.linspace(0, 2 * np.pi, 512)
+    circle_x = center.real + radius * np.cos(theta)
+    circle_y = center.imag + radius * np.sin(theta)
+    fig.add_line(circle_x, circle_y, colors="black", thickness=2.5)
+
+    # 中心点
+    fig.add_scatter(
+        np.array([center.real]),
+        np.array([center.imag]),
+        colors="black",
+        sizes=20,
     )
-    ax.add_patch(circle)
 
-    ax.scatter([center.real], [center.imag], color="black", s=30, zorder=4)
-    ax.set_aspect("equal", adjustable="box")
-    ax.set_xlim(-extent, extent)
-    ax.set_ylim(-extent, extent)
-    ax.set_xlabel("実部")
-    ax.set_ylabel("虚部")
-    ax.set_title("円に関する反転による格子の変形")
-    ax.grid(False)
-
-    legend_handles = [
-        Line2D([0], [0], color="#9a9a9a", lw=1.2, alpha=0.7, label="元の格子"),
-        Line2D([0], [0], color="crimson", lw=1.5, alpha=0.9, label="反転後の格子"),
-        Line2D([0], [0], color="black", lw=2.2, label="反転の円"),
-    ]
-    ax.legend(handles=legend_handles, loc="upper right")
-
-    plt.show()
+    fig.show()
+    plot.show()
