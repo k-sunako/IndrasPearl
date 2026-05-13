@@ -55,6 +55,22 @@ class MobiusTransform:
             d=self.d / scale,
         )
 
+    def __mul__(self, other: "MobiusTransform") -> "MobiusTransform":
+        """
+        積演算として合成を行う。
+
+        self * other は「先に other、その後 self」を表す。
+        """
+        if not isinstance(other, MobiusTransform):
+            return NotImplemented
+
+        return MobiusTransform(
+            a=self.a * other.a + self.b * other.c,
+            b=self.a * other.b + self.b * other.d,
+            c=self.c * other.a + self.d * other.c,
+            d=self.c * other.b + self.d * other.d,
+        )
+
 
 def mobius_on_point(T: MobiusTransform, z: ComplexOrInfinity) -> ComplexOrInfinity:
     """
@@ -87,12 +103,7 @@ def compose(T: MobiusTransform, S: MobiusTransform) -> MobiusTransform:
     合成 T ∘ S を返す。
     先に S、次に T を適用する。
     """
-    return MobiusTransform(
-        a=T.a * S.a + T.b * S.c,
-        b=T.a * S.b + T.b * S.d,
-        c=T.c * S.a + T.d * S.c,
-        d=T.c * S.b + T.d * S.d,
-    )
+    return T * S
 
 
 def inverse(T: MobiusTransform) -> MobiusTransform:
