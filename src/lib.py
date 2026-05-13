@@ -120,13 +120,14 @@ def fixed_points(T: MobiusTransform) -> list[ComplexOrInfinity]:
     a, b, c, d = T.a, T.b, T.c, T.d
 
     if c == 0:
-        if d - a == 0:
+        if d == a:
             return [None] if b == 0 else []
         return [b / (d - a)]
 
+    # z = (a z + b) / (c z + d)
+    # => c z^2 + (d - a) z - b = 0
     B = d - a
-    C = -b
-    discriminant = B * B - 4 * c * C
+    discriminant = B * B + 4 * b * c
     sqrt_discriminant = discriminant ** 0.5
 
     z1 = (-B + sqrt_discriminant) / (2 * c)
@@ -136,6 +137,30 @@ def fixed_points(T: MobiusTransform) -> list[ComplexOrInfinity]:
         return [z1]
 
     return [z1, z2]
+
+
+def fixed_point(T: MobiusTransform) -> ComplexOrInfinity:
+    """
+    固定点が 1 つだけのときにその値を返す。
+
+    固定点が 0 個または 2 個の場合は ValueError を送出する。
+    """
+    fps = fixed_points(T)
+    if len(fps) != 1:
+        raise ValueError(f"固定点が 1 つではありません: {fps}")
+    return fps[0]
+
+
+def sample_mobius_transform() -> MobiusTransform:
+    """
+    例として使いやすいメビウス変換を返す。
+    """
+    return MobiusTransform(
+        a=1 + 0j,
+        b=1 + 0j,
+        c=0 + 0j,
+        d=1 + 0j,
+    )
 
 
 def linspace(start: float, stop: float, count: int) -> list[float]:
