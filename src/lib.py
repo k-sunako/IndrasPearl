@@ -263,13 +263,13 @@ def _scatter_graphic_from_point(point: np.ndarray, color: str, size: float) -> S
     )
 
 
-def visualize_inversion_of_grid(
+def build_inversion_figure(
     center: complex = 0 + 0j,
     radius: float = 1.0,
     grid_step: float = 0.25,
     extent: float = 3.0,
-) -> None:
-    """円に関する格子反転を可視化する。fastplotlib でウィンドウ表示する。"""
+) -> Figure:
+    """円に関する格子反転を可視化する Figure を構築して返す。"""
     grid_lines = make_grid_lines(
         xmin=-extent,
         xmax=extent,
@@ -279,12 +279,8 @@ def visualize_inversion_of_grid(
     )
 
     fig = Figure()
-
-    # fastplotlib のこのバージョンでは、Figure を空で作り、
-    # layout 経由で graphic を追加する。
     layout = fig[0, 0]
 
-    # 元の格子
     for line in grid_lines:
         layout.add_graphic(
             _line_graphic_from_points(
@@ -295,7 +291,6 @@ def visualize_inversion_of_grid(
             )
         )
 
-    # 反転後の格子
     for line in grid_lines:
         for segment in split_line_at_center(line, center):
             inverted = invert_polyline(segment, center, radius)
@@ -308,7 +303,6 @@ def visualize_inversion_of_grid(
                 )
             )
 
-    # 円
     theta = np.linspace(0, 2 * np.pi, 512, dtype=np.float32)
     circle = np.column_stack(
         [
@@ -325,7 +319,6 @@ def visualize_inversion_of_grid(
         )
     )
 
-    # 中心点
     layout.add_graphic(
         _scatter_graphic_from_point(
             np.array([[center.real, center.imag]], dtype=np.float32),
@@ -334,4 +327,4 @@ def visualize_inversion_of_grid(
         )
     )
 
-    fig.show()
+    return fig
