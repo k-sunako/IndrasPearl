@@ -98,6 +98,39 @@ def mobius_on_point(T: MobiusTransform, z: ComplexOrInfinity) -> ComplexOrInfini
     return numerator / denominator
 
 
+def mobius_on_circle(
+    T: MobiusTransform,
+    center: complex,
+    radius: float,
+) -> tuple[complex, float]:
+    """
+    円 C = { center + radius * exp(iθ) } の像 T(C) の中心と半径を返す。
+
+    参考:
+    - Box 10 / Note 3.7 のレシピ
+    - 像が直線になる場合は ValueError を送出する
+    """
+    if T.c == 0:
+        # アフィン変換なので円は円のまま
+        q = mobius_on_point(T, center)
+        if q is None:
+            raise ValueError("円の像が直線になります。")
+        s = abs(T.a / T.d) * radius if T.d != 0 else abs(T.a) * radius
+        return q, s
+
+    z = center - (radius * radius) / np.conj(T.d / T.c + center)
+    q = mobius_on_point(T, z)
+    if q is None:
+        raise ValueError("円の像が直線になります。")
+
+    w = mobius_on_point(T, center + radius)
+    if w is None:
+        raise ValueError("円の像が直線になります。")
+
+    s = abs(q - w)
+    return q, s
+
+
 def compose(T: MobiusTransform, S: MobiusTransform) -> MobiusTransform:
     """
     合成 T ∘ S を返す。
