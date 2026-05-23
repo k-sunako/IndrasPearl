@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 
+from fastplotlib import loop
+
 from src.lib import MobiusTransform, plot_schottky_dance
 
 
@@ -48,6 +50,9 @@ def main() -> None:
 
     fig = plot_schottky_dance(gens, seeds, depth=args.depth)
     fig.show()
+
+    # これがないと、スクリプト終了時にウィンドウが閉じる
+    loop.run()
 
 
 if __name__ == "__main__":
