@@ -98,37 +98,75 @@ def mobius_on_point(T: MobiusTransform, z: ComplexOrInfinity) -> ComplexOrInfini
     return numerator / denominator
 
 
+def _complex_from_xy(p: np.ndarray) -> complex:
+    return complex(float(p[0]), float(p[1]))
+
+
+def _xy_from_complex(z: complex) -> np.ndarray:
+    return np.array([z.real, z.imag], dtype=np.float32)
+
+
+def _circle_from_three_points(
+    z1: complex,
+    z2: complex,
+    z3: complex,
+    eps: float = 1e-12,
+) -> tuple[complex, float]:
+    """
+    3 点を通る円を求める。
+    3 点がほぼ一直線なら ValueError を送出する。
+    """
+    x1, y1 = z1.real, z1.imag
+    x2, y2 = z2.real, z2.imag
+    x3, y3 = z3.real, z3.imag
+
+    a = x1 - x2
+    b = y1 - y2
+    c = x1 - x3
+    d = y1 - y3
+
+    e = ((x1 * x1 - x2 * x2) + (y1 * y1 - y2 * y2)) / 2.0
+    f = ((x1 * x1 - x3 * x3) + (y1 * y1 - y3 * y3)) / 2.0
+
+    det = a * d - b * c
+    if abs(det) < eps:
+        raise ValueError("円の像が直線になります。")
+
+    center_x = (d * e - b * f) / det
+    center_y = (-c * e + a * f) / det
+    center = complex(center_x, center_y)
+
+    radius = abs(center - z1)
+    return center, float(radius)
+
+
 def mobius_on_circle(
     T: MobiusTransform,
     center: complex,
     radius: float,
 ) -> tuple[complex, float]:
     """
-    円 C = { center + radius * exp(iθ) } の像 T(C) の中心と半径を返す。
+    円 |z - center| = radius の像の中心と半径を返す。
 
-    参考:
-    - Box 10 / Note 3.7 のレシピ
-    - 像が直線になる場合は ValueError を送出する
+    3 点を円周上の一定パターンで取り、その像から円を復元する。
+    像が直線になる場合は ValueError を送出する。
     """
-    if T.c == 0:
-        # アフィン変換なので円は円のまま
-        q = mobius_on_point(T, center)
-        if q is None:
-            raise ValueError("円の像が直線になります。")
-        s = abs(T.a / T.d) * radius if T.d != 0 else abs(T.a) * radius
-        return q, s
+    if radius < 0:
+        raise ValueError("半径は 0 以上である必要があります。")
 
-    z = center - (radius * radius) / np.conj(T.d / T.c + center)
-    q = mobius_on_point(T, z)
-    if q is None:
+    # 円周上の 3 点を固定のパターンで取る
+    z1 = center + radius
+    z2 = center + radius * 1j
+    z3 = center - radius
+
+    w1 = mobius_on_point(T, z1)
+    w2 = mobius_on_point(T, z2)
+    w3 = mobius_on_point(T, z3)
+
+    if w1 is None or w2 is None or w3 is None:
         raise ValueError("円の像が直線になります。")
 
-    w = mobius_on_point(T, center + radius)
-    if w is None:
-        raise ValueError("円の像が直線になります。")
-
-    s = abs(q - w)
-    return q, s
+    return _circle_from_three_points(w1, w2, w3)
 
 
 def compose(T: MobiusTransform, S: MobiusTransform) -> MobiusTransform:
@@ -305,6 +343,69 @@ def _scatter_graphic_from_point(point: np.ndarray, color: str, size: float) -> S
         colors=color,
         sizes=size,
     )
+
+
+def schottky_dance(
+    gens: dict[str, MobiusTransform],
+    seeds: dict[str, tuple[complex, float]],
+    depth: int,
+) -> list[tuple[str, complex, float]]:
+    """
+    ショットキー円の像を世代ごとにたどる。
+
+    gens:
+        {"a": a, "b": b, "A": A, "B": B} のような生成元
+    seeds:
+        {"a": (center, radius), ...} の初期円
+    depth:
+        何世代までたどるか
+
+    返り値:
+        (word, center, radius) の列
+    """
+    if depth < 0:
+        raise ValueError("depth は 0 以上である必要があります。")
+
+    def inverse_name(name: str) -> str:
+        if name == "a":
+            return "A"
+        if name == "A":
+            return "a"
+        if name == "b":
+            return "B"
+        if name == "B":
+            return "b"
+        raise ValueError(f"未知の生成元名です: {name}")
+
+    out: list[tuple[str, complex, float]] = []
+    current: list[tuple[str, complex, float]] = [
+        (name, seeds[name][0], seeds[name][1]) for name in seeds
+    ]
+
+    for _ in range(depth):
+        next_current: list[tuple[str, complex, float]] = []
+        for word, center, radius in current:
+            out.append((word, center, radius))
+            last = word[-1]
+
+            for gname, T in gens.items():
+                if inverse_name(last) == gname:
+                    continue
+
+                if gname not in seeds:
+                    continue
+
+                c0, r0 = seeds[gname]
+                try:
+                    c1, r1 = mobius_on_circle(T, c0, r0)
+                except ValueError:
+                    continue
+
+                next_current.append((word + gname, c1, r1))
+
+        current = next_current
+
+    return out
 
 
 def build_inversion_figure(
