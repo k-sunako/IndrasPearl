@@ -408,13 +408,67 @@ def schottky_dance(
     return out
 
 
+def plot_schottky_dance(
+    gens: dict[str, MobiusTransform],
+    seeds: dict[str, tuple[complex, float]],
+    depth: int,
+    *,
+    color: str = "dodgerblue",
+    thickness: float = 1.5,
+    samples: int = 256,
+) -> Figure:
+    """
+    schottky_dance の結果を fastplotlib で描画して返す。
+    """
+    circles = schottky_dance(gens, seeds, depth)
+
+    fig = Figure()
+    ax = fig[0, 0]
+
+    # 初期円も描く
+    for name, (center, radius) in seeds.items():
+        theta = np.linspace(0, 2 * np.pi, samples, dtype=np.float32)
+        pts = np.column_stack(
+            [
+                np.float32(center.real) + np.float32(radius) * np.cos(theta).astype(np.float32),
+                np.float32(center.imag) + np.float32(radius) * np.sin(theta).astype(np.float32),
+            ]
+        ).astype(np.float32)
+        ax.add_graphic(
+            LineGraphic(
+                data=pts,
+                colors="black",
+                thickness=2.0,
+            )
+        )
+
+    for word, center, radius in circles:
+        theta = np.linspace(0, 2 * np.pi, samples, dtype=np.float32)
+        pts = np.column_stack(
+            [
+                np.float32(center.real) + np.float32(radius) * np.cos(theta).astype(np.float32),
+                np.float32(center.imag) + np.float32(radius) * np.sin(theta).astype(np.float32),
+            ]
+        ).astype(np.float32)
+
+        ax.add_graphic(
+            LineGraphic(
+                data=pts,
+                colors=color,
+                thickness=thickness,
+            )
+        )
+
+    return fig
+
+
 def build_inversion_figure(
     center: complex = 0 + 0j,
     radius: float = 1.0,
     grid_step: float = 0.25,
     extent: float = 3.0,
 ) -> Figure:
-    """円に関する格子反転を可視化する Figure を構築して返す。"""
+    """円に関する格子反転を可視化する Figure を構築して返す."""
     grid_lines = make_grid_lines(
         xmin=-extent,
         xmax=extent,
